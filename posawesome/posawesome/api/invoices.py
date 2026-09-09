@@ -742,11 +742,12 @@ def update_invoice(data):
     # For return invoices, payments should be negative amounts
     if invoice_doc.is_return:
         for payment in invoice_doc.payments:
-            payment.amount = -abs(payment.amount)
-            payment.base_amount = -abs(payment.base_amount)
+            payment.amount = -abs(flt(payment.amount))
+            payment.base_amount = -abs(flt(payment.base_amount))
 
         invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
         invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
+
     if not invoice_doc.custom_sales_person:
         emp_of_user = frappe.db.get_value("Employee", 
                                            {"user_id": frappe.session.user},
