@@ -760,7 +760,7 @@ def update_invoice(data):
         if not sales_p:
             frappe.throw("Employee is not Liked with Sales person ")
             
-    invoice_doc.custom_sales_person = sales_p
+        invoice_doc.custom_sales_person = sales_p
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True
     invoice_doc.docstatus = 0
