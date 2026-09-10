@@ -748,20 +748,20 @@ def update_invoice(data):
         invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
         invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
 
-    if not invoice_doc.custom_sales_person:
-        emp_of_user = frappe.db.get_value("Employee", 
-                                           {"user_id": frappe.session.user},
-                                           "name")
-        print(emp_of_user)
-        if not emp_of_user:
-            frappe.throw("User is not Linked with any Employees")
+    # if not invoice_doc.custom_sales_person:
+    #     emp_of_user = frappe.db.get_value("Employee", 
+    #                                        {"user_id": frappe.session.user},
+    #                                        "name")
+    #     print(emp_of_user)
+    #     if not emp_of_user:
+    #         frappe.throw("User is not Linked with any Employees")
 
-        sales_p = frappe.db.get_value("Sales Person", {"employee": emp_of_user}, "name")
-        print(sales_p)
-        if not sales_p:
-            frappe.throw("Employee is not Liked with Sales person ")
+    #     sales_p = frappe.db.get_value("Sales Person", {"employee": emp_of_user}, "name")
+    #     print(sales_p)
+    #     if not sales_p:
+    #         frappe.throw("Employee is not Liked with Sales person ")
             
-        invoice_doc.custom_sales_person = sales_p
+    #     invoice_doc.custom_sales_person = sales_p
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True
     invoice_doc.docstatus = 0
@@ -975,6 +975,12 @@ def submit_invoice(invoice, data, submit_in_background=False):
     else:
         invoice_doc = frappe.get_doc(doctype, invoice_name)
         invoice_doc.update(invoice)
+
+    st = invoice.get("sales_team")
+    if st:
+        sp = st[0].get("sales_person")
+        if sp:
+            invoice_doc.custom_sales_person = sp
 
     _deduplicate_free_items(invoice_doc)
 
