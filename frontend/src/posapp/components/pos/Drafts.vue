@@ -60,6 +60,12 @@ export default {
 		dialog_data: {},
 		headers: [
 			{
+				title: __("Sales Person"),
+				value: "custom_sales_person",
+				align: "start",
+				sortable: true,
+			},
+			{
 				title: __("Customer"),
 				value: "customer_name",
 				align: "start",

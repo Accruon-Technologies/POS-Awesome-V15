@@ -2774,6 +2774,10 @@ export default {
 				const hasReturnPayments = this.invoice_doc.payments.some(
 					(payment) => Math.abs(this.flt(payment.amount || 0, this.currency_precision)) > 0,
 				);
+				this.sales_person =
+					invoice_doc.custom_sales_person ||
+					invoice_doc.sales_team?.[0]?.sales_person ||
+					"";
 				this.is_credit_sale = false;
 				this.is_write_off_change = false;
 				if (invoice_doc.is_return) {

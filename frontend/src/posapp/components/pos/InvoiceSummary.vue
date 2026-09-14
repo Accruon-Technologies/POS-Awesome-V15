@@ -19,7 +19,8 @@
 							color="accent"
 						/>
 					</v-col>
-					<!-- Additional Discount (Amount or Percentage) -->
+
+					<!-- Additional Discount -->
 					<v-col cols="6" v-if="!pos_profile.posa_use_percentage_discount">
 						<v-text-field
 							ref="additionalDiscountField"
@@ -41,6 +42,7 @@
 						/>
 					</v-col>
 
+					<!-- Additional Discount Percentage -->
 					<v-col cols="6" v-else>
 						<v-text-field
 							ref="additionalDiscountField"
@@ -79,7 +81,7 @@
 						/>
 					</v-col>
 
-					<!-- Total (moved to maintain row alignment) -->
+					<!-- Total -->
 					<v-col cols="6">
 						<v-text-field
 							:model-value="formatCurrency(subtotal)"
@@ -91,6 +93,26 @@
 							readonly
 							color="success"
 							class="summary-field"
+						/>
+					</v-col>
+
+					<!-- Sales Person -->
+					<v-col cols="12">
+						<v-select
+							density="compact"
+							clearable
+							variant="solo"
+							color="success"
+							class="summary-field"
+							prepend-inner-icon="mdi-account"
+							:label="frappe._('Sales Person')"
+							v-model="sales_person"
+							:items="sales_persons"
+							item-title="title"
+							item-value="value"
+							:no-data-text="__('Sales Person not found')"
+							hide-details
+							:disabled="readonly"
 						/>
 					</v-col>
 				</v-row>
@@ -112,6 +134,7 @@
 							{{ __("Save & Clear") }}
 						</v-btn>
 					</v-col>
+
 					<v-col cols="6">
 						<v-btn
 							block
@@ -125,6 +148,7 @@
 							{{ __("Load Drafts") }}
 						</v-btn>
 					</v-col>
+
 					<v-col cols="6" v-if="pos_profile.custom_allow_select_sales_order == 1">
 						<v-btn
 							block
@@ -138,6 +162,7 @@
 							{{ __("Select S.O") }}
 						</v-btn>
 					</v-col>
+
 					<v-col cols="6">
 						<v-btn
 							block
@@ -151,6 +176,7 @@
 							{{ __("Cancel Sale") }}
 						</v-btn>
 					</v-col>
+
 					<v-col cols="6" v-if="pos_profile.posa_allow_return == 1">
 						<v-btn
 							block
@@ -164,6 +190,7 @@
 							{{ __("Sales Return") }}
 						</v-btn>
 					</v-col>
+
 					<v-col cols="6" v-if="pos_profile.posa_allow_print_draft_invoices">
 						<v-btn
 							block
@@ -177,6 +204,7 @@
 							{{ __("Print Draft") }}
 						</v-btn>
 					</v-col>
+
 					<v-col cols="6">
 						<v-btn
 							block
@@ -190,7 +218,8 @@
 							{{ __("Apply Offers") }}
 						</v-btn>
 					</v-col>
-					<v-col cols="12">
+
+					<v-col cols="12" v-if="can_collect_payment">
 						<v-btn
 							block
 							color="success"
@@ -226,9 +255,10 @@ export default {
 		discount_percentage_offer_name: [String, Number],
 		isNumber: Function,
 	},
+
 	data() {
 		return {
-			// Loading states for better UX
+			// Loading states
 			saveLoading: false,
 			loadDraftsLoading: false,
 			selectOrderLoading: false,
@@ -237,12 +267,23 @@ export default {
 			printLoading: false,
 			applyOffersLoading: false,
 			paymentLoading: false,
+
+
+			payment_collection_role: null,
+			can_collect_payment: false,
+			// Discount states
 			additionalDiscountDisplay: null,
 			additionalDiscountPercentageDisplay: null,
 			isEditingAdditionalDiscount: false,
 			isEditingAdditionalDiscountPercentage: false,
+
+			// Sales Person
+			sales_persons: [],
+			sales_person: "",
+			selected_sales_person: null,
 		};
 	},
+
 	emits: [
 		"update:additional_discount",
 		"update:additional_discount_percentage",
@@ -255,11 +296,17 @@ export default {
 		"print-draft",
 		"apply-offers",
 		"show-payment",
+
+		// Send Sales Persons to parent
+		"sales-persons-loaded",
+		"sales-person-selected",
 	],
+
 	computed: {
 		hide_qty_decimals() {
 			try {
 				const saved = localStorage.getItem("posawesome_item_selector_settings");
+
 				if (saved) {
 					const opts = JSON.parse(saved);
 					return !!opts.hide_qty_decimals;
@@ -267,35 +314,49 @@ export default {
 			} catch (e) {
 				console.error("Failed to load item selector settings:", e);
 			}
+
 			return false;
 		},
+
 	},
+
 	watch: {
 		additional_discount(value) {
 			if (!this.isEditingAdditionalDiscount) {
 				this.additionalDiscountDisplay = this.normalizeDiscountDisplay(value);
 			}
 		},
+
 		additional_discount_percentage(value) {
 			if (!this.isEditingAdditionalDiscountPercentage) {
-				this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(value);
+				this.additionalDiscountPercentageDisplay =
+					this.normalizeDiscountDisplay(value);
 			}
 		},
+		sales_person(value) {
+			this.$nextTick(() => {
+				this.$emit("sales-person-selected", value || null);
+			});
+		},
 	},
+
 	created() {
-		this.additionalDiscountDisplay = this.normalizeDiscountDisplay(this.additional_discount);
-		this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(
-			this.additional_discount_percentage,
-		);
+		this.additionalDiscountDisplay =
+			this.normalizeDiscountDisplay(this.additional_discount);
+
+		this.additionalDiscountPercentageDisplay =
+			this.normalizeDiscountDisplay(this.additional_discount_percentage);
 	},
+
 	methods: {
 		normalizeDiscountDisplay(value) {
 			if (value === 0 || value === "0") {
 				return "";
 			}
+
 			return value;
 		},
-		// Debounced handlers for better performance
+
 		handleAdditionalDiscountUpdate(value) {
 			this.$emit("update:additional_discount", value);
 		},
@@ -311,9 +372,11 @@ export default {
 		focusAdditionalDiscountField() {
 			const field = this.$refs.additionalDiscountField;
 			const input = field?.$el?.querySelector?.("input");
+
 			if (input?.disabled) {
 				return;
 			}
+
 			input?.focus?.();
 		},
 
@@ -331,6 +394,7 @@ export default {
 
 		async handleSaveAndClear() {
 			this.saveLoading = true;
+
 			try {
 				await this.$emit("save-and-clear");
 			} finally {
@@ -340,6 +404,7 @@ export default {
 
 		async handleLoadDrafts() {
 			this.loadDraftsLoading = true;
+
 			try {
 				await this.$emit("load-drafts");
 			} finally {
@@ -349,6 +414,7 @@ export default {
 
 		async handleSelectOrder() {
 			this.selectOrderLoading = true;
+
 			try {
 				await this.$emit("select-order");
 			} finally {
@@ -358,6 +424,7 @@ export default {
 
 		async handleCancelSale() {
 			this.cancelLoading = true;
+
 			try {
 				await this.$emit("cancel-sale");
 			} finally {
@@ -367,6 +434,7 @@ export default {
 
 		async handleOpenReturns() {
 			this.returnsLoading = true;
+
 			try {
 				await this.$emit("open-returns");
 			} finally {
@@ -376,6 +444,7 @@ export default {
 
 		async handlePrintDraft() {
 			this.printLoading = true;
+
 			try {
 				await this.$emit("print-draft");
 			} finally {
@@ -385,6 +454,7 @@ export default {
 
 		async handleApplyOffers() {
 			this.applyOffersLoading = true;
+
 			try {
 				await this.$emit("apply-offers");
 			} finally {
@@ -394,12 +464,168 @@ export default {
 
 		async handleShowPayment() {
 			this.paymentLoading = true;
+
 			try {
 				await this.$emit("show-payment");
 			} finally {
 				this.paymentLoading = false;
 			}
 		},
+
+
+		async get_payment_collection_role() {
+			try {			
+
+				const company = frappe.defaults.get_user_default("company")
+					
+
+				console.log("Company from POS Profile:", company);
+
+				if (!company) {
+					console.error("Company not found in POS Profile");
+					this.payment_collection_role = null;
+					this.can_collect_payment = false;
+					return;
+				}
+
+				// Now fetch the payment collection role directly from Company
+				const companyResponse = await frappe.db.get_value(
+					"Company",
+					company,
+					"custom_role_for_payment_collection_for_pos"
+				);
+
+				const requiredRole =
+					companyResponse?.message
+						?.custom_role_for_payment_collection_for_pos;
+
+				console.log("Required Payment Role:", requiredRole);
+				console.log("Current User Roles:", frappe.user_roles);
+
+				this.payment_collection_role = requiredRole || null;
+
+				if (!requiredRole) {
+					this.can_collect_payment = false;
+					return;
+				}
+
+				// Check whether current user has the configured role
+				this.can_collect_payment = (frappe.user_roles || []).some(
+					(role) =>
+						String(role).trim().toLowerCase() ===
+						String(requiredRole).trim().toLowerCase()
+				);
+
+				console.log(
+					"Can Collect Payment:",
+					this.can_collect_payment
+				);
+
+			} catch (error) {
+				console.error(
+					"Failed to get payment collection permission:",
+					error
+				);
+
+				this.payment_collection_role = null;
+				this.can_collect_payment = false;
+			}
+		},
+		/**
+		 * Fetch Sales Persons once and make the list
+		 * available to the parent/other component.
+		 */
+		get_sales_person_names() {
+			console.log("Sap loading started")
+			const vm = this;
+
+			// First use local storage if available
+			if (
+				vm.pos_profile?.posa_local_storage &&
+				typeof getSalesPersonsStorage === "function"
+			) {
+				try {
+					const storedSalesPersons = getSalesPersonsStorage();
+
+					if (
+						Array.isArray(storedSalesPersons) &&
+						storedSalesPersons.length
+					) {
+						vm.sales_persons = storedSalesPersons;
+
+						// Send the list to the parent
+						vm.$emit(
+							"sales-persons-loaded",
+							vm.sales_persons
+						);
+					}
+				} catch (e) {
+					console.error(
+						"Failed to load Sales Persons from local storage:",
+						e
+					);
+				}
+			}
+
+			// Fetch the latest list from the server
+			frappe.call({
+				method:
+					"posawesome.posawesome.api.utilities.get_sales_person_names",
+
+				callback: function (r) {
+					if (r.message && r.message.length > 0) {
+						vm.sales_persons = r.message.map((sp) => ({
+							value: sp.name,
+							title: sp.sales_person_name,
+							sales_person_name: sp.sales_person_name,
+							name: sp.name,
+						}));
+
+						// Update local storage
+						if (
+							vm.pos_profile?.posa_local_storage &&
+							typeof setSalesPersonsStorage === "function"
+						) {
+							setSalesPersonsStorage(vm.sales_persons);
+						}
+
+						// Send Sales Persons to parent/second component
+						vm.$emit(
+							"sales-persons-loaded",
+							vm.sales_persons
+						);
+					} else {
+						vm.sales_persons = [];
+
+						vm.$emit(
+							"sales-persons-loaded",
+							[]
+						);
+					}
+				},
+
+				error: function (err) {
+					console.error(
+						"Failed to fetch Sales Persons:",
+						err
+					);
+
+					// Keep local-storage data if available.
+					// Otherwise send an empty list.
+					vm.$emit(
+						"sales-persons-loaded",
+						vm.sales_persons || []
+					);
+				},
+			});
+		},
+	},
+
+	mounted() {
+
+		// Load Sales Persons when this component is mounted
+		this.get_sales_person_names();
+		this.get_payment_collection_role();
 	},
 };
 </script>
@@ -418,7 +644,6 @@ export default {
 	color: var(--pos-text-primary) !important;
 }
 
-/* Enhanced button styling with better performance */
 .summary-btn {
 	transition: all 0.2s ease !important;
 	position: relative;
@@ -439,7 +664,6 @@ export default {
 	transform: translateY(0);
 }
 
-/* Special styling for the PAY button */
 .pay-btn {
 	font-weight: 600 !important;
 	font-size: 1.1rem !important;
@@ -453,7 +677,6 @@ export default {
 	transform: translateY(-2px);
 }
 
-/* Enhanced field styling */
 .summary-field {
 	transition: all 0.2s ease;
 }
@@ -463,7 +686,6 @@ export default {
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Responsive optimizations */
 @media (max-width: 768px) {
 	.summary-btn {
 		font-size: 0.875rem !important;
@@ -490,12 +712,10 @@ export default {
 	}
 }
 
-/* Loading state animations */
 .summary-btn:deep(.v-btn__loader) {
 	opacity: 0.8;
 }
 
-/* Dark theme enhancements */
 :deep([data-theme="dark"]) .summary-btn,
 :deep(.v-theme--dark) .summary-btn {
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;

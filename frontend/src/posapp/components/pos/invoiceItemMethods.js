@@ -1917,6 +1917,16 @@ export default {
 		if (!doc.customer_name && customerDetails.customer_name) {
 			doc.customer_name = customerDetails.customer_name;
 		}
+
+		// Preserve selected Sales Person
+		// if (sourceDoc.custom_sales_person) {
+		doc.custom_sales_person =
+			this.selected_sales_person ||
+			this.invoice_doc?.custom_sales_person ||
+			sourceDoc?.custom_sales_person ||
+			null;
+		// }
+		console.log("custom_sales_person", doc.custom_sales_person)
 		if (doc.doctype === "Quotation") {
 			doc.quotation_to = doc.quotation_to || "Customer";
 			if (resolvedCustomer) {
@@ -3239,9 +3249,22 @@ export default {
 				console.log("Reloading current invoice from backend");
 				const refreshed = await this.reload_current_invoice_from_backend();
 				if (refreshed) {
+					// Preserve Sales Person selected in InvoiceSummary
+					if (this.invoice_doc?.custom_sales_person) {
+						refreshed.custom_sales_person = this.invoice_doc.custom_sales_person;
+					}
+
 					invoice_doc = refreshed;
-					console.log("Refreshed invoice:", invoice_doc);
-				} else {
+
+					// Keep it in the reactive invoice document as well
+					this.invoice_doc.custom_sales_person =
+						invoice_doc.custom_sales_person || null;
+
+					console.log(
+						"Refreshed invoice with Sales Person:",
+						invoice_doc.custom_sales_person
+					);
+				}else {
 					console.log("Failed to refresh invoice");
 				}
 			}

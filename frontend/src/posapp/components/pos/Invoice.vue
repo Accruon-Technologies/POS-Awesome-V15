@@ -325,6 +325,7 @@
 			@print-draft="print_draft_invoice"
 			@apply-offers="apply_offers_and_reload"
 			@show-payment="show_payment"
+			@sales-person-selected="handleSalesPersonSelected"
 		/>
 	</div>
 </template>
@@ -492,6 +493,20 @@ export default {
 			if (typeof focusFn === "function") {
 				focusFn();
 			}
+		},
+
+		handleSalesPersonSelected(sales_person) {
+			this.selected_sales_person = sales_person || null;
+
+			if (this.invoice_doc) {
+				this.invoice_doc.custom_sales_person =
+					this.selected_sales_person;
+			}
+
+			console.log(
+				"Sales Person selected:",
+				this.selected_sales_person
+			);
 		},
 
 		focusItemSearchField() {

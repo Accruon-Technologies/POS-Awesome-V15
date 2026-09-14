@@ -550,6 +550,7 @@ def validate_return_items(original_invoice_name, return_items, doctype="Sales In
 def update_invoice(data):
     currency_cache = {}
     data = json.loads(data)
+    print("data", data)
     _strip_client_freebies_from_payload(data)
     # Determine doctype based on POS Profile setting
     pos_profile = data.get("pos_profile")
@@ -975,9 +976,12 @@ def submit_invoice(invoice, data, submit_in_background=False):
     else:
         invoice_doc = frappe.get_doc(doctype, invoice_name)
         invoice_doc.update(invoice)
-
+    print("invoice", invoice)
     st = invoice.get("sales_team")
-    if st:
+    # Preserve Sales Person selected from POS
+    if invoice.get("custom_sales_person"):
+        invoice_doc.custom_sales_person = invoice.get("custom_sales_person")
+    elif st:
         sp = st[0].get("sales_person")
         if sp:
             invoice_doc.custom_sales_person = sp
@@ -1195,6 +1199,7 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Invoice"):
     data = []
     for invoice in invoices_list:
         data.append(frappe.get_cached_doc(doctype, invoice["name"]))
+    print("Draft data", data)
     return data
 
 
