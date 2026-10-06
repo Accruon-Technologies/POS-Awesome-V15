@@ -82,10 +82,16 @@ def create_opening_voucher(pos_profile, company, balance_details):
 
 @frappe.whitelist()
 def check_opening_shift(user):
+    print("Checking opening shift for user:", user)
+    pos_profile = get_pos_profile(user)
+    if not pos_profile:
+        frappe.throw(_("No POS Profile found for user {0}").format(user), frappe.DoesNotExistError)
+
     open_vouchers = frappe.db.get_all(
         "POS Opening Shift",
         filters={
-            "user": user,
+            # "user": user,
+            "pos_profile": pos_profile,
             "pos_closing_shift": ["is", "not set"],
             "docstatus": 1,
             "status": "Open",
@@ -99,6 +105,13 @@ def check_opening_shift(user):
         data["pos_opening_shift"] = frappe.get_doc("POS Opening Shift", open_vouchers[0]["name"])
         update_opening_shift_data(data, open_vouchers[0]["pos_profile"])
     return data
+
+def get_pos_profile(user):
+    pos_profile = frappe.db.get_value(
+        "POS Profile User", {"user": user}, "parent", order_by="creation desc"
+    )
+    print("Retrieved pos_profile:", pos_profile)
+    return pos_profile
 
 
 def update_opening_shift_data(data, pos_profile):
