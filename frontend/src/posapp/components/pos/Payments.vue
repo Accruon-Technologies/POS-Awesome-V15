@@ -530,7 +530,7 @@
 						v-if="
 							invoice_doc &&
 							pos_profile.posa_allow_write_off_change &&
-							credit_change > 0 &&
+							diff_payment > 0 &&
 							!invoice_doc.is_return
 						"
 					>
@@ -539,7 +539,28 @@
 							flat
 							:label="frappe._('Write Off Difference Amount')"
 							class="my-0 pa-1"
+							@update:model-value="handleWriteOffToggle"
 						></v-switch>
+
+						<v-text-field
+							v-if="is_write_off_change"
+							v-model.number="invoice_doc.write_off_amount"
+							density="compact"
+							variant="solo"
+							type="number"
+							min="0"
+							step="0.01"
+							:max="getWriteOffMaxAmount()"
+							:label="frappe._('Write Off Amount')"
+							prefix="AED"
+							hide-details
+							@change="validateWriteOffAmount"
+						></v-text-field>
+
+						<small v-if="is_write_off_change">
+							Maximum write-off:
+							{{ formatCurrency(getWriteOffMaxAmount()) }}
+						</small>
 					</v-col>
 					<v-col
 						cols="6"
@@ -1352,6 +1373,78 @@ export default {
 		},
 	},
 	methods: {
+		getWriteOffMaxAmount() {
+			if (!this.invoice_doc || this.invoice_doc.is_return) {
+				return 0;
+			}
+
+			const outstanding = Math.max(
+				this.flt(this.diff_payment, this.currency_precision),
+				0
+			);
+
+			const profileLimit = this.flt(
+				this.pos_profile?.write_off_limit || 0,
+				this.currency_precision
+			);
+
+			return profileLimit > 0
+				? Math.min(outstanding, profileLimit)
+				: outstanding;
+		},
+
+		handleWriteOffToggle(enabled) {
+			if (!this.invoice_doc) {
+				return;
+			}
+
+			if (!enabled) {
+				this.invoice_doc.write_off_amount = 0;
+				this.invoice_doc.base_write_off_amount = 0;
+				return;
+			}
+
+			if (
+				this.invoice_doc.write_off_amount === undefined ||
+				this.invoice_doc.write_off_amount === null
+			) {
+				this.invoice_doc.write_off_amount = 0;
+			}
+		},
+
+		validateWriteOffAmount() {
+			if (!this.invoice_doc) {
+				return;
+			}
+
+			const amount = this.flt(
+				this.invoice_doc.write_off_amount || 0,
+				this.currency_precision
+			);
+
+			const maxAmount = this.getWriteOffMaxAmount();
+
+			if (amount > maxAmount) {
+				this.eventBus.emit("show_message", {
+					title: __("Write-off cannot exceed {0}", [
+						this.formatCurrency(maxAmount)
+					]),
+					color: "error",
+				});
+			}
+
+			const validAmount = Math.min(
+				Math.max(amount, 0),
+				maxAmount
+			);
+
+			this.invoice_doc.write_off_amount = validAmount;
+
+			this.invoice_doc.base_write_off_amount = this.flt(
+				validAmount * (this.invoice_doc.conversion_rate || 1),
+				this.currency_precision
+			);
+		},
 		extractSubmissionErrorMessage(exc) {
 			if (!exc) {
 				return __("Unknown error");
@@ -1660,6 +1753,17 @@ export default {
 				total_change: changeLimit,
 				paid_change: paidChange,
 				credit_change: creditChange,
+
+				is_credit_sale: this.is_credit_sale ? 1 : 0,
+				is_write_off_change: this.is_write_off_change ? 1 : 0,
+
+				write_off_amount: this.is_write_off_change
+					? this.flt(
+						this.invoice_doc.write_off_amount || 0,
+						this.currency_precision
+					)
+					: 0,
+
 				redeemed_customer_credit: this.redeemed_customer_credit,
 				customer_credit_dict: this.customer_credit_dict,
 				is_cashback: this.is_cashback,
